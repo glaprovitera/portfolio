@@ -20,6 +20,31 @@
     --serif:'Newsreader', serif;
     --sans:'Inter', sans-serif;
     --mono:'IBM Plex Mono', monospace;
+    color-scheme:light;
+  }
+  :root[data-theme="dark"]{
+    --bg:#1B1A17;
+    --bg-raised:#252420;
+    --ink:#ECE9E0;
+    --ink-soft:#AFAB9E;
+    --ink-faint:#726F63;
+    --accent:#E08B5C;
+    --accent-soft:#4A4436;
+    --line:#38362E;
+    color-scheme:dark;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#1B1A17;
+      --bg-raised:#252420;
+      --ink:#ECE9E0;
+      --ink-soft:#AFAB9E;
+      --ink-faint:#726F63;
+      --accent:#E08B5C;
+      --accent-soft:#4A4436;
+      --line:#38362E;
+      color-scheme:dark;
+    }
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   html{scroll-behavior:smooth;}
@@ -29,6 +54,7 @@
     font-family:var(--sans);
     line-height:1.6;
     -webkit-font-smoothing:antialiased;
+    transition:background .3s ease, color .3s ease;
   }
   a{color:inherit;}
 
@@ -87,6 +113,22 @@
   }
   #editToggle:hover{opacity:1;}
   body.edit-mode #editToggle{opacity:1; background:var(--accent);}
+  #themeToggle{
+    position:fixed;
+    bottom:20px; right:140px;
+    z-index:200;
+    font-family:var(--mono);
+    font-size:11px;
+    background:var(--ink);
+    color:var(--bg);
+    border:none;
+    padding:9px 16px;
+    border-radius:20px;
+    cursor:pointer;
+    opacity:0.55;
+    transition:opacity .2s ease, background .3s ease, color .3s ease;
+  }
+  #themeToggle:hover{opacity:1;}
   body.edit-mode .rail,
   body.edit-mode main{margin-top:44px;}
 
@@ -497,6 +539,7 @@
     .entry{grid-template-columns:1fr; gap:6px;}
     .skill-grid{grid-template-columns:1fr;}
     #toolbar{flex-wrap:wrap; height:auto; padding:8px 12px;}
+    #themeToggle{bottom:70px; right:20px;}
   }
 </style>
 </head>
@@ -512,6 +555,7 @@
   </div>
 
   <button id="editToggle">✎ Editar</button>
+  <button id="themeToggle" type="button" aria-label="Cambiar entre tema claro y oscuro">🌙 Oscuro</button>
 
   <nav class="rail" aria-label="Navegación por secciones">
     <span class="rail-label">PROFUNDIDAD DEL POZO</span>
@@ -810,6 +854,37 @@ editToggle.addEventListener('click', () => {
   applyEditMode();
 });
 applyEditMode();
+
+/* ---------- Tema claro / oscuro ---------- */
+const THEME_KEY = 'cvLaproviteraTheme';
+const themeToggle = document.getElementById('themeToggle');
+
+function currentEffectiveTheme(){
+  const attr = document.documentElement.getAttribute('data-theme');
+  if(attr === 'dark' || attr === 'light') return attr;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function updateThemeToggleLabel(){
+  themeToggle.textContent = currentEffectiveTheme() === 'dark' ? '☀ Claro' : '🌙 Oscuro';
+}
+
+function applyTheme(theme){
+  if(theme === 'dark' || theme === 'light'){
+    document.documentElement.setAttribute('data-theme', theme);
+  }else{
+    document.documentElement.removeAttribute('data-theme');
+  }
+  updateThemeToggleLabel();
+}
+
+applyTheme(localStorage.getItem(THEME_KEY));
+
+themeToggle.addEventListener('click', () => {
+  const next = currentEffectiveTheme() === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+});
 
 /* ---------- Toolbar actions ---------- */
 document.getElementById('saveBtn').addEventListener('click', () => {

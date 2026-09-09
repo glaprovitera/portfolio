@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gonzalo Laprovitera — Geólogo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F2F1EC;
+    --bg-raised:#EAE8E0;
+    --ink:#1B1D1B;
+    --ink-soft:#5B5D57;
+    --ink-faint:#8B8C82;
+    --accent:#9C4A2E;
+    --accent-soft:#C9BFA9;
+    --line:#DAD6C9;
+    --serif:'Newsreader', serif;
+    --sans:'Inter', sans-serif;
+    --mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;}
+
+  /* ---------- Toolbar ---------- */
+  #toolbar{
+    position:fixed;
+    top:0; left:0; right:0;
+    height:44px;
+    background:var(--ink);
+    color:var(--bg);
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:0 16px;
+    z-index:200;
+    font-family:var(--mono);
+    font-size:12px;
+  }
+  #toolbar button{
+    font-family:var(--mono);
+    font-size:11.5px;
+    background:none;
+    border:1px solid rgba(242,241,236,0.35);
+    color:var(--bg);
+    padding:6px 12px;
+    border-radius:2px;
+    cursor:pointer;
+    transition:background .2s ease;
+  }
+  #toolbar button:hover{background:rgba(242,241,236,0.12);}
+  #toolbar button.primary{
+    background:var(--accent);
+    border-color:var(--accent);
+  }
+  #toolbar .toolbar-status{
+    margin-left:auto;
+    color:var(--accent-soft);
+    font-size:11px;
+  }
+  body.edit-mode #toolbar{display:flex;}
+  body:not(.edit-mode) #toolbar{display:none;}
+  #editToggle{
+    position:fixed;
+    bottom:20px; right:20px;
+    z-index:200;
+    font-family:var(--mono);
+    font-size:11px;
+    background:var(--ink);
+    color:var(--bg);
+    border:none;
+    padding:9px 16px;
+    border-radius:20px;
+    cursor:pointer;
+    opacity:0.55;
+    transition:opacity .2s ease;
+  }
+  #editToggle:hover{opacity:1;}
+  body.edit-mode #editToggle{opacity:1; background:var(--accent);}
+  body.edit-mode .rail,
+  body.edit-mode main{margin-top:44px;}
+
+  [contenteditable="true"]{
+    outline:1px dashed var(--accent-soft);
+    outline-offset:3px;
+    border-radius:2px;
+    transition:outline-color .2s ease, background .2s ease;
+  }
+  [contenteditable="true"]:hover{outline-color:var(--accent);}
+  [contenteditable="true"]:focus{
+    outline:1px solid var(--accent);
+    background:var(--bg-raised);
+  }
+
+  .admin-only{display:none;}
+  body.edit-mode .admin-only{display:inline-flex;}
+
+  .add-btn{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--accent);
+    background:none;
+    border:1px dashed var(--accent-soft);
+    border-radius:2px;
+    padding:8px 14px;
+    cursor:pointer;
+    margin-top:8px;
+    align-items:center;
+    gap:6px;
+  }
+  .add-btn:hover{background:var(--bg-raised); border-style:solid;}
+  .remove-btn{
+    font-family:var(--mono);
+    font-size:14px;
+    line-height:1;
+    color:var(--ink-faint);
+    background:none;
+    border:none;
+    cursor:pointer;
+    align-items:center;
+    padding:2px 6px;
+  }
+  .remove-btn:hover{color:var(--accent);}
+
+  /* ---------- Depth rail (signature element) ---------- */
+  .rail{
+    position:fixed;
+    left:0; top:0; bottom:0;
+    width:88px;
+    border-right:1px solid var(--line);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:32px 0;
+    z-index:50;
+    background:var(--bg);
+    transition:margin-top .2s ease;
+  }
+  .rail-label{
+    font-family:var(--mono);
+    font-size:9px;
+    letter-spacing:0.12em;
+    color:var(--ink-faint);
+    writing-mode:vertical-rl;
+    text-orientation:mixed;
+    margin-bottom:24px;
+  }
+  .rail-track{
+    position:relative;
+    flex:1;
+    width:1px;
+    background:var(--line);
+  }
+  .rail-tick{
+    position:absolute;
+    left:0;
+    display:flex;
+    align-items:center;
+    transform:translateY(-50%);
+    cursor:pointer;
+    padding:6px 0;
+  }
+  .rail-tick::before{
+    content:'';
+    width:8px; height:1px;
+    background:var(--ink-faint);
+    margin-right:8px;
+    transition:all .25s ease;
+  }
+  .rail-tick .depth{
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--ink-faint);
+    white-space:nowrap;
+    transition:color .25s ease;
+  }
+  .rail-tick.active::before{
+    width:16px;
+    background:var(--accent);
+  }
+  .rail-tick.active .depth{
+    color:var(--accent);
+    font-weight:500;
+  }
+
+  /* ---------- Layout ---------- */
+  main{
+    margin-left:88px;
+    max-width:760px;
+    padding:80px 56px 120px;
+    transition:margin-top .2s ease;
+  }
+  header.hero{
+    margin-bottom:64px;
+  }
+  header.hero > *{
+    opacity:0;
+    transform:translateY(10px);
+    animation:heroIn .7s cubic-bezier(.16,1,.3,1) forwards;
+  }
+  .eyebrow{animation-delay:.05s;}
+  h1{animation-delay:.15s;}
+  .role{animation-delay:.25s;}
+  .hero-meta{animation-delay:.35s;}
+  @keyframes heroIn{
+    to{opacity:1; transform:translateY(0);}
+  }
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    display:block;
+    margin-bottom:18px;
+  }
+  h1{
+    font-family:var(--serif);
+    font-weight:500;
+    font-size:56px;
+    line-height:1.08;
+    letter-spacing:-0.01em;
+    margin-bottom:14px;
+  }
+  .role{
+    font-family:var(--serif);
+    font-style:italic;
+    font-size:22px;
+    color:var(--ink-soft);
+    margin-bottom:28px;
+  }
+  .hero-meta{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:20px;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .hero-meta a{text-decoration:none; border-bottom:1px solid var(--accent-soft);}
+  .hero-meta a:hover{border-color:var(--accent);}
+
+  .share-btn{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--accent);
+    background:none;
+    border:1px solid var(--accent-soft);
+    border-radius:2px;
+    padding:5px 12px;
+    cursor:pointer;
+    transition:background .25s ease, border-color .25s ease;
+  }
+  .share-btn:hover{
+    background:var(--bg-raised);
+    border-color:var(--accent);
+  }
+  .share-msg{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--ink-faint);
+    margin-top:10px;
+    min-height:14px;
+  }
+
+  /* ---------- Tabs ---------- */
+  .tabs{
+    display:flex;
+    gap:0;
+    border-bottom:1px solid var(--line);
+    margin-bottom:56px;
+    overflow-x:auto;
+  }
+  .tab-btn{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:0.04em;
+    color:var(--ink-faint);
+    background:none;
+    border:none;
+    cursor:pointer;
+    padding:14px 20px 14px 0;
+    margin-right:28px;
+    position:relative;
+    white-space:nowrap;
+    transition:color .3s ease;
+  }
+  .tab-btn .tab-depth{
+    display:block;
+    font-size:10px;
+    color:var(--ink-faint);
+    margin-top:4px;
+    transition:color .3s ease;
+  }
+  .tab-btn::after{
+    content:'';
+    position:absolute;
+    left:0; right:20px; bottom:-1px;
+    height:2px;
+    background:var(--accent);
+    transform:scaleX(0);
+    transform-origin:left;
+    transition:transform .35s cubic-bezier(.4,0,.2,1);
+  }
+  .tab-btn:hover{color:var(--ink);}
+  .tab-btn.active{color:var(--ink);}
+  .tab-btn.active .tab-depth{color:var(--accent);}
+  .tab-btn.active::after{transform:scaleX(1);}
+
+  section{
+    margin-bottom:0;
+    scroll-margin-top:60px;
+    display:none;
+  }
+  section.active{
+    display:block;
+    animation:sectionIn .5s cubic-bezier(.16,1,.3,1);
+  }
+  @keyframes sectionIn{
+    from{opacity:0; transform:translateY(14px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    gap:16px;
+    margin-bottom:36px;
+    border-bottom:1px solid var(--line);
+    padding-bottom:16px;
+  }
+  .section-num{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--accent);
+  }
+  h2{
+    font-family:var(--serif);
+    font-weight:500;
+    font-size:28px;
+  }
+
+  p.lede{
+    font-size:17px;
+    color:var(--ink);
+    max-width:60ch;
+    margin-bottom:8px;
+  }
+
+  /* Experience entries */
+  .entry{
+    display:grid;
+    grid-template-columns:120px 1fr auto;
+    gap:24px;
+    padding:24px 0;
+    border-bottom:1px solid var(--line);
+    transition:padding-left .3s ease, border-color .3s ease;
+    align-items:start;
+  }
+  .entry:hover{
+    padding-left:8px;
+    border-color:var(--accent-soft);
+  }
+  .entry:last-child{border-bottom:none;}
+  .entry-date{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--ink-faint);
+    padding-top:3px;
+  }
+  .entry-title{
+    font-family:var(--serif);
+    font-size:19px;
+    font-weight:500;
+    margin-bottom:4px;
+  }
+  .entry-org{
+    font-size:13px;
+    color:var(--accent);
+    font-family:var(--mono);
+    margin-bottom:10px;
+    letter-spacing:0.02em;
+  }
+  .entry-desc{
+    font-size:15px;
+    color:var(--ink-soft);
+    max-width:56ch;
+  }
+
+  /* Projects */
+  .project{
+    padding:22px 0;
+    border-bottom:1px solid var(--line);
+    transition:padding-left .3s ease, border-color .3s ease;
+    position:relative;
+  }
+  .project:hover{
+    padding-left:8px;
+    border-color:var(--accent-soft);
+  }
+  .project:last-child{border-bottom:none;}
+  .project-title{
+    font-family:var(--serif);
+    font-size:19px;
+    font-weight:500;
+    margin-bottom:6px;
+    padding-right:28px;
+  }
+  .project-tags{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-top:10px;
+  }
+  .tag{
+    font-family:var(--mono);
+    font-size:10.5px;
+    color:var(--ink-soft);
+    border:1px solid var(--line);
+    padding:3px 9px;
+    border-radius:2px;
+    letter-spacing:0.02em;
+  }
+  .entry-remove, .project-remove, .edu-remove{
+    position:absolute;
+    top:22px; right:0;
+  }
+  .entry .remove-btn{padding-top:2px;}
+
+  /* Skills */
+  .skill-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px 40px;
+  }
+  .skill-group{
+    padding:18px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .skill-group h3{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin-bottom:10px;
+  }
+  .skill-list{
+    font-size:14.5px;
+    color:var(--ink-soft);
+    line-height:1.9;
+    white-space:pre-line;
+  }
+
+  /* Education */
+  .edu-entry{
+    padding:22px 0;
+    border-bottom:1px solid var(--line);
+    position:relative;
+  }
+  .edu-entry:last-child{border-bottom:none;}
+  .thesis-box{
+    margin-top:14px;
+    padding:16px 18px;
+    background:var(--bg-raised);
+    border-left:2px solid var(--accent);
+    font-size:14px;
+    color:var(--ink-soft);
+    font-style:italic;
+    font-family:var(--serif);
+  }
+
+  footer{
+    padding:40px 0 0;
+    border-top:1px solid var(--line);
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--ink-faint);
+  }
+
+  @media (max-width:720px){
+    .rail{width:52px;}
+    .rail-label{display:none;}
+    .rail-tick .depth{display:none;}
+    main{margin-left:52px; padding:56px 24px 100px;}
+    h1{font-size:38px;}
+    .entry{grid-template-columns:1fr; gap:6px;}
+    .skill-grid{grid-template-columns:1fr;}
+    #toolbar{flex-wrap:wrap; height:auto; padding:8px 12px;}
+  }
+</style>
+</head>
+<body>
+
+  <div id="toolbar">
+    <button id="saveBtn">💾 Guardar</button>
+    <button id="exportJsonBtn">⇩ Exportar JSON</button>
+    <button id="importJsonBtn">⇧ Importar JSON</button>
+    <input type="file" id="importJsonInput" accept="application/json" style="display:none">
+    <button id="downloadHtmlBtn" class="primary">⇩ Descargar HTML actualizado</button>
+    <span class="toolbar-status" id="toolbarStatus"></span>
+  </div>
+
+  <button id="editToggle">✎ Editar</button>
+
+  <nav class="rail" aria-label="Navegación por secciones">
+    <span class="rail-label">PROFUNDIDAD DEL POZO</span>
+    <div class="rail-track" id="railTrack"></div>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <span class="eyebrow" data-field="perfilEyebrow">Registro estratigráfico — CV</span>
+      <h1 data-field="name">Gonzalo Laprovitera</h1>
+      <p class="role" data-field="role">Geólogo, especializado en yacimientos no convencionales</p>
+      <div class="hero-meta">
+        <span data-field="location">Buenos Aires, Argentina</span>
+        <span data-field="langs">Español (nativo) · Inglés (avanzado)</span>
+        <a id="emailLink" href="mailto:laprovitera4@gmail.com"><span data-field="email">laprovitera4@gmail.com</span></a>
+        <button id="shareBtn" class="share-btn" type="button">Compartir ↗</button>
+      </div>
+      <div id="shareMsg" class="share-msg" role="status" aria-live="polite"></div>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="Secciones del CV">
+      <button class="tab-btn active" data-tab="perfil">Perfil<span class="tab-depth">0 m</span></button>
+      <button class="tab-btn" data-tab="experiencia">Experiencia<span class="tab-depth">900 m</span></button>
+      <button class="tab-btn" data-tab="proyectos">Proyectos<span class="tab-depth">1900 m</span></button>
+      <button class="tab-btn" data-tab="competencias">Competencias<span class="tab-depth">2700 m</span></button>
+      <button class="tab-btn" data-tab="formacion">Formación<span class="tab-depth">3400 m</span></button>
+    </nav>
+
+    <section id="perfil" class="active">
+      <div class="section-head">
+        <span class="section-num">01 — 0 m</span>
+        <h2>Perfil</h2>
+      </div>
+      <p class="lede" data-field="perfilText">
+        Geólogo formado en la Universidad Nacional de La Plata, con foco en sedimentología
+        y evaluación de reservorios no convencionales. Mi trabajo de tesis analizó núcleos
+        de la Fm. Quintuco para caracterización de Vaca Muerta, y desde ahí construí experiencia
+        en interpretación de perfiles de pozo, análisis petrográfico y trabajo de campo en
+        el sector de Oil &amp; Gas.
+      </p>
+    </section>
+
+    <section id="experiencia">
+      <div class="section-head">
+        <span class="section-num">02 — 900 m</span>
+        <h2>Experiencia</h2>
+      </div>
+      <div id="experienciaList"></div>
+      <button class="add-btn admin-only" id="addExperiencia">+ Agregar experiencia</button>
+    </section>
+
+    <section id="proyectos">
+      <div class="section-head">
+        <span class="section-num">03 — 1900 m</span>
+        <h2>Proyectos</h2>
+      </div>
+      <div id="proyectosList"></div>
+      <button class="add-btn admin-only" id="addProyecto">+ Agregar proyecto</button>
+    </section>
+
+    <section id="competencias">
+      <div class="section-head">
+        <span class="section-num">04 — 2700 m</span>
+        <h2>Competencias</h2>
+      </div>
+
+      <div class="skill-grid">
+        <div class="skill-group">
+          <h3>Técnicas de subsuelo</h3>
+          <div class="skill-list" data-field="competenciasTecnicas">Interpretación de perfiles de pozo
+Análisis sedimentológico
+Análisis petrográfico
+Ensayos de bombeo</div>
+        </div>
+        <div class="skill-group">
+          <h3>Herramientas</h3>
+          <div class="skill-list" data-field="competenciasHerramientas">QGIS
+Python (nivel básico)
+Suite Office
+Google Workspace</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="formacion">
+      <div class="section-head">
+        <span class="section-num">05 — 3400 m</span>
+        <h2>Formación</h2>
+      </div>
+      <div id="formacionList"></div>
+      <button class="add-btn admin-only" id="addFormacion">+ Agregar formación</button>
+    </section>
+
+    <footer>
+      Última actualización · 2026
+    </footer>
+  </main>
+
+<script>
+/*DEFAULT_STATE_START*/
+const defaultState = {
+  experiencia: [
+    {date:"2023", title:"Pasantía profesional", org:"YPF — Y-TEC", desc:"Participación en tareas de caracterización de reservorio dentro del centro tecnológico de YPF, aplicando herramientas de análisis sedimentológico a problemas reales de la industria."},
+    {date:"2022", title:"Programa Deep — foco en logística de supply chain", org:"Halliburton", desc:"Programa de formación con eje en la cadena de suministro de operaciones de pozo, entendiendo la logística detrás de las operaciones técnicas en campo."},
+    {date:"2021 — 2022", title:"Asistente técnico de geología", org:"Trabajo de campo", desc:"Asistencia técnica en tareas de campo, incluyendo ensayos de bombeo y relevamiento geológico."},
+    {date:"2018 — 2021", title:"Investigador — proyecto arqueológico de Quilmes", org:"Museo Brown", desc:"Pasantía de investigación de varios años, aplicando métodos de análisis estratigráfico a un contexto arqueológico."}
+  ],
+  proyectos: [
+    {title:"Sedimentología de núcleos de la Fm. Quintuco", desc:"Tesis de grado enfocada en la evaluación de reservorios no convencionales en Vaca Muerta a partir de análisis de núcleos.", tags:"Sedimentología, Vaca Muerta, No convencionales"},
+    {title:"Análisis estratigráfico — sitio arqueológico Quilmes", desc:"Aplicación de criterios de estratigrafía geológica a un contexto de excavación arqueológica en el marco del Museo Brown.", tags:"Estratigrafía, Arqueología"}
+  ],
+  formacion: [
+    {title:"Licenciatura en Geología", org:"Universidad Nacional de La Plata", thesis:"\"Sedimentología de núcleos de la Fm. Quintuco para la evaluación de reservorios no convencionales — Vaca Muerta\""}
+  ]
+};
+/*DEFAULT_STATE_END*/
+
+const STORAGE_KEY = 'cvLaproviteraState_v3';
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return JSON.parse(JSON.stringify(defaultState));
+}
+
+let state = loadState();
+let statusTimer;
+
+function setStatus(msg){
+  const el = document.getElementById('toolbarStatus');
+  el.textContent = msg;
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(() => { el.textContent = ''; }, 2500);
+}
+
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+/* ---------- Singular text fields (contenteditable spans) ---------- */
+document.querySelectorAll('[data-field]').forEach(el => {
+  const key = el.dataset.field;
+  el.addEventListener('input', () => {
+    state[key] = el.tagName === 'DIV' ? el.innerText : el.textContent;
+    saveState();
+    if(key === 'email'){
+      document.getElementById('emailLink').setAttribute('href', 'mailto:' + state.email.trim());
+    }
+  });
+});
+
+/* ---------- Experiencia ---------- */
+const expList = document.getElementById('experienciaList');
+function renderExperiencia(){
+  expList.innerHTML = '';
+  state.experiencia.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'entry';
+    row.innerHTML = `
+      <div class="entry-date" data-editable>${item.date}</div>
+      <div>
+        <div class="entry-title" data-editable>${item.title}</div>
+        <div class="entry-org" data-editable>${item.org}</div>
+        <p class="entry-desc" data-editable>${item.desc}</p>
+      </div>
+      <button class="remove-btn admin-only" title="Quitar">✕</button>
+    `;
+    const [dateEl, , ] = row.querySelectorAll('[data-editable]');
+    const editableEls = row.querySelectorAll('[data-editable]');
+    const fields = ['date','title','org','desc'];
+    editableEls.forEach((el, idx) => {
+      el.addEventListener('input', () => {
+        state.experiencia[i][fields[idx]] = el.textContent;
+        saveState();
+      });
+    });
+    row.querySelector('.remove-btn').addEventListener('click', () => {
+      state.experiencia.splice(i, 1);
+      saveState();
+      renderExperiencia();
+      applyEditMode();
+    });
+    expList.appendChild(row);
+  });
+}
+
+document.getElementById('addExperiencia').addEventListener('click', () => {
+  state.experiencia.unshift({date:'Año', title:'Nuevo puesto', org:'Organización', desc:'Descripción breve del rol.'});
+  saveState();
+  renderExperiencia();
+  applyEditMode();
+});
+
+/* ---------- Proyectos ---------- */
+const projList = document.getElementById('proyectosList');
+function renderProyectos(){
+  projList.innerHTML = '';
+  state.proyectos.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'project';
+    const tagsArr = (item.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+    row.innerHTML = `
+      <button class="remove-btn admin-only" title="Quitar" style="float:right;">✕</button>
+      <div class="project-title" data-editable="title">${item.title}</div>
+      <p class="entry-desc" data-editable="desc">${item.desc}</p>
+      <div class="project-tags" data-editable="tags">${tagsArr.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+      <p class="share-msg admin-only" style="margin-top:6px;">Tags separados por coma: <span contenteditable="true" class="tags-edit" style="border-bottom:1px dashed var(--accent-soft);">${item.tags}</span></p>
+    `;
+    row.querySelector('[data-editable="title"]').addEventListener('input', (e) => {
+      state.proyectos[i].title = e.target.textContent;
+      saveState();
+    });
+    row.querySelector('[data-editable="desc"]').addEventListener('input', (e) => {
+      state.proyectos[i].desc = e.target.textContent;
+      saveState();
+    });
+    row.querySelector('.tags-edit').addEventListener('input', (e) => {
+      state.proyectos[i].tags = e.target.textContent;
+      saveState();
+    });
+    row.querySelector('.tags-edit').addEventListener('blur', () => {
+      renderProyectos();
+      applyEditMode();
+    });
+    row.querySelector('.remove-btn').addEventListener('click', () => {
+      state.proyectos.splice(i, 1);
+      saveState();
+      renderProyectos();
+      applyEditMode();
+    });
+    projList.appendChild(row);
+  });
+}
+
+document.getElementById('addProyecto').addEventListener('click', () => {
+  state.proyectos.unshift({title:'Nuevo proyecto', desc:'Descripción breve del proyecto.', tags:'Etiqueta'});
+  saveState();
+  renderProyectos();
+  applyEditMode();
+});
+
+/* ---------- Formación ---------- */
+const eduList = document.getElementById('formacionList');
+function renderFormacion(){
+  eduList.innerHTML = '';
+  state.formacion.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'edu-entry';
+    row.innerHTML = `
+      <button class="remove-btn admin-only" title="Quitar" style="float:right;">✕</button>
+      <div class="entry-title" data-editable="title">${item.title}</div>
+      <div class="entry-org" data-editable="org">${item.org}</div>
+      <div class="thesis-box" data-editable="thesis">${item.thesis}</div>
+    `;
+    ['title','org','thesis'].forEach(key => {
+      row.querySelector(`[data-editable="${key}"]`).addEventListener('input', (e) => {
+        state.formacion[i][key] = e.target.textContent;
+        saveState();
+      });
+    });
+    row.querySelector('.remove-btn').addEventListener('click', () => {
+      state.formacion.splice(i, 1);
+      saveState();
+      renderFormacion();
+      applyEditMode();
+    });
+    eduList.appendChild(row);
+  });
+}
+
+document.getElementById('addFormacion').addEventListener('click', () => {
+  state.formacion.push({title:'Nuevo título', org:'Institución', thesis:'Detalle o tesis (opcional)'});
+  saveState();
+  renderFormacion();
+  applyEditMode();
+});
+
+renderExperiencia();
+renderProyectos();
+renderFormacion();
+
+/* ---------- Edit mode ---------- */
+function applyEditMode(){
+  const isEdit = document.body.classList.contains('edit-mode');
+  document.querySelectorAll('[data-field]').forEach(el => el.setAttribute('contenteditable', isEdit));
+  document.querySelectorAll('#experienciaList [data-editable], #proyectosList [data-editable], #formacionList [data-editable]').forEach(el => el.setAttribute('contenteditable', isEdit));
+}
+
+const editToggle = document.getElementById('editToggle');
+editToggle.addEventListener('click', () => {
+  document.body.classList.toggle('edit-mode');
+  const isEdit = document.body.classList.contains('edit-mode');
+  editToggle.textContent = isEdit ? '✓ Listo' : '✎ Editar';
+  applyEditMode();
+});
+applyEditMode();
+
+/* ---------- Toolbar actions ---------- */
+document.getElementById('saveBtn').addEventListener('click', () => {
+  saveState();
+  setStatus('Guardado en este navegador.');
+});
+
+document.getElementById('exportJsonBtn').addEventListener('click', () => {
+  const singular = {};
+  document.querySelectorAll('[data-field]').forEach(el => {
+    singular[el.dataset.field] = el.tagName === 'DIV' ? el.innerText : el.textContent;
+  });
+  const fullState = Object.assign({}, state, singular);
+  const blob = new Blob([JSON.stringify(fullState, null, 2)], {type:'application/json'});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'cv-laprovitera-datos.json';
+  link.click();
+  setStatus('JSON exportado.');
+});
+
+document.getElementById('importJsonBtn').addEventListener('click', () => {
+  document.getElementById('importJsonInput').click();
+});
+
+document.getElementById('importJsonInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      state = Object.assign(JSON.parse(JSON.stringify(defaultState)), data);
+      saveState();
+      document.querySelectorAll('[data-field]').forEach(el => {
+        const key = el.dataset.field;
+        if(data[key] !== undefined){
+          if(el.tagName === 'DIV') el.innerText = data[key]; else el.textContent = data[key];
+        }
+      });
+      renderExperiencia();
+      renderProyectos();
+      renderFormacion();
+      applyEditMode();
+      setStatus('JSON importado correctamente.');
+    }catch(err){
+      setStatus('Error al leer el JSON.');
+    }
+  };
+  reader.readAsText(file);
+});
+
+document.getElementById('downloadHtmlBtn').addEventListener('click', () => {
+  const singular = {};
+  document.querySelectorAll('[data-field]').forEach(el => {
+    singular[el.dataset.field] = el.tagName === 'DIV' ? el.innerText : el.textContent;
+  });
+  Object.assign(state, singular);
+  saveState();
+
+  const wasEdit = document.body.classList.contains('edit-mode');
+  document.body.classList.remove('edit-mode');
+  applyEditMode();
+
+  const clone = document.documentElement.cloneNode(true);
+  clone.querySelector('#toolbar')?.remove();
+  clone.querySelector('#editToggle')?.remove();
+  clone.querySelectorAll('.admin-only').forEach(el => el.remove());
+  clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+  clone.querySelectorAll('.tags-edit').forEach(el => el.closest('p.share-msg')?.remove());
+  clone.classList.remove('edit-mode');
+
+  let html = '<!DOCTYPE html>\n' + clone.outerHTML;
+
+  const newStateJson = JSON.stringify(Object.assign({}, state), null, 2);
+  const newBlock = '/*DEFAULT_STATE_START*/\nconst defaultState = ' + newStateJson + ';\n/*DEFAULT_STATE_END*/';
+  html = html.replace(/\/\*DEFAULT_STATE_START\*\/[\s\S]*?\/\*DEFAULT_STATE_END\*\//, newBlock);
+
+  if(wasEdit){
+    document.body.classList.add('edit-mode');
+    applyEditMode();
+  }
+
+  const blob = new Blob([html], {type:'text/html'});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'index.html';
+  link.click();
+  setStatus('HTML descargado — subilo a Netlify para actualizar el sitio.');
+});
+
+/* ---------- Tabs + depth rail ---------- */
+const sections = [
+  {id:'perfil', depth:'0 m'},
+  {id:'experiencia', depth:'900 m'},
+  {id:'proyectos', depth:'1900 m'},
+  {id:'competencias', depth:'2700 m'},
+  {id:'formacion', depth:'3400 m'}
+];
+
+const track = document.getElementById('railTrack');
+sections.forEach((s, i) => {
+  const tick = document.createElement('div');
+  tick.className = 'rail-tick';
+  tick.style.top = (8 + i * (100 / (sections.length - 1)) * 0.86) + '%';
+  tick.dataset.target = s.id;
+  tick.innerHTML = `<span class="depth">${s.depth}</span>`;
+  tick.addEventListener('click', () => activateTab(s.id));
+  track.appendChild(tick);
+});
+
+const ticks = document.querySelectorAll('.rail-tick');
+const tabBtns = document.querySelectorAll('.tab-btn');
+const panels = document.querySelectorAll('main > section');
+
+function activateTab(id){
+  panels.forEach(p => p.classList.toggle('active', p.id === id));
+  tabBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === id));
+  ticks.forEach(t => t.classList.toggle('active', t.dataset.target === id));
+}
+
+tabBtns.forEach(btn => {
+  btn.addEventListener('click', () => activateTab(btn.dataset.tab));
+});
+
+activateTab('perfil');
+
+/* ---------- Share button ---------- */
+const shareBtn = document.getElementById('shareBtn');
+const shareMsg = document.getElementById('shareMsg');
+const isLocalFile = window.location.protocol === 'file:';
+
+shareBtn.addEventListener('click', async () => {
+  const url = window.location.href;
+
+  if (isLocalFile) {
+    shareMsg.textContent = 'Este archivo está abierto localmente (file:///), así que no se puede compartir un link real todavía. Publicalo primero (por ejemplo con Netlify Drop) para tener una URL pública.';
+    return;
+  }
+
+  const shareData = {
+    title: 'Gonzalo Laprovitera — Geólogo',
+    text: 'Mi portafolio como geólogo, especializado en yacimientos no convencionales.',
+    url: url
+  };
+
+  try {
+    if (navigator.share) {
+      await navigator.share(shareData);
+      shareMsg.textContent = '';
+      return;
+    }
+  } catch (err) {}
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(url);
+      shareMsg.textContent = 'Link copiado al portapapeles.';
+      return;
+    }
+  } catch (err) {}
+
+  try {
+    const temp = document.createElement('textarea');
+    temp.value = url;
+    temp.style.position = 'fixed';
+    temp.style.opacity = '0';
+    document.body.appendChild(temp);
+    temp.select();
+    document.execCommand('copy');
+    document.body.removeChild(temp);
+    shareMsg.textContent = 'Link copiado al portapapeles.';
+  } catch (err) {
+    shareMsg.textContent = `No se pudo copiar automáticamente. Link: ${url}`;
+  }
+});
+</script>
+</body>
+</html>
